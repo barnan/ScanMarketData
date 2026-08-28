@@ -30,8 +30,6 @@ MIN_PRICE = 1.0                             # GPT -> 5.0
 MIN_AVG_DOLLAR_VOLUME = 1_000_000           # GPT -> 1_000_000
 TOP_N = 30
 
-
-
 # Minimum number of historical rows required
 MIN_HISTORY = 220
 
@@ -76,6 +74,7 @@ def download_stock(ticker):
         )
 
         if df.empty:
+            print(f"Empty data for {ticker}")
             return None
 
         # yfinance may return MultiIndex columns.
@@ -85,12 +84,14 @@ def download_stock(ticker):
         required = ["Open", "High", "Low", "Close", "Volume"]
 
         if not all(column in df.columns for column in required):
+            print(f"Missing columns: {ticker}")
             return None
 
         df = df[required].copy()
         df = df.dropna()
 
         if len(df) < MIN_HISTORY:
+            print(f"Insufficient history for {ticker}")
             return None
 
         return df
@@ -118,8 +119,7 @@ def analyze_stock(
     if df is None:
         return None
 
-    # Basic liquidity/price filter. This is intentionally separate
-    # from the optional scoring indicators.
+    # Basic liquidity/price filter. This is intentionally separate from the optional scoring indicators.
     latest_raw = df.iloc[-1]
 
     avg_dollar_volume = (
@@ -215,7 +215,7 @@ def main():
     print("=" * 70)
     print()
 
-    print("Active indicators:")
+    print("List of the active indicators:")
     for indicator in ACTIVE_INDICATORS:
         print(f"  - {indicator.name} ({indicator.max_points} pts)")
     print()
@@ -229,16 +229,9 @@ def main():
     results = []
 
     for i, ticker in enumerate(tickers, start=1):
-        print(
-            f"[{i:3d}/{len(tickers)}] "
-            f"{ticker:8s}",
-            end=" ",
-        )
+        print(f"[{i:3d}/{len(tickers)}] {ticker:8s}", end=" ",)
 
-        result = analyze_stock(
-            ticker,
-            ACTIVE_INDICATORS,
-        )
+        result = analyze_stock(ticker, ACTIVE_INDICATORS,)
 
         if result is None:
             print("SKIP")
@@ -304,7 +297,8 @@ def main():
     print()
 
     print(
-        results_df[display_columns]
+
+        [display_columns]
         .head(TOP_N)
         .to_string(index=False)
     )

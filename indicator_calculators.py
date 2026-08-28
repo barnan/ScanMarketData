@@ -29,13 +29,11 @@ def calculate_moving_averages(df: pd.DataFrame) -> pd.DataFrame:
 
     return df
 
-
 def calculate_rsi(df: pd.DataFrame) -> pd.DataFrame:
     """Calculate RSI."""
     df = df.copy()
     df["RSI"] = RSIIndicator(close=df["Close"], window=14).rsi()
     return df
-
 
 def calculate_macd(df: pd.DataFrame) -> pd.DataFrame:
     """Calculate MACD, signal and histogram."""
@@ -54,7 +52,6 @@ def calculate_macd(df: pd.DataFrame) -> pd.DataFrame:
 
     return df
 
-
 def calculate_atr(df: pd.DataFrame) -> pd.DataFrame:
     """Calculate ATR and ATR as a percentage of price."""
     df = df.copy()
@@ -70,7 +67,6 @@ def calculate_atr(df: pd.DataFrame) -> pd.DataFrame:
     df["ATR_PCT"] = df["ATR"] / df["Close"]
 
     return df
-
 
 def calculate_adx(df: pd.DataFrame) -> pd.DataFrame:
     """Calculate ADX and directional indicators."""
@@ -89,7 +85,6 @@ def calculate_adx(df: pd.DataFrame) -> pd.DataFrame:
 
     return df
 
-
 def calculate_bollinger_bands(df: pd.DataFrame) -> pd.DataFrame:
     """Calculate Bollinger Band high, low and width."""
     df = df.copy()
@@ -105,7 +100,6 @@ def calculate_bollinger_bands(df: pd.DataFrame) -> pd.DataFrame:
     df["BB_WIDTH"] = bb.bollinger_wband()
 
     return df
-
 
 def calculate_volume(df: pd.DataFrame) -> pd.DataFrame:
     """Calculate volume averages, relative volume and dollar volume."""
@@ -123,7 +117,6 @@ def calculate_volume(df: pd.DataFrame) -> pd.DataFrame:
 
     return df
 
-
 def calculate_resistance(df: pd.DataFrame) -> pd.DataFrame:
     """
     Calculate previous resistance levels.
@@ -139,15 +132,10 @@ def calculate_resistance(df: pd.DataFrame) -> pd.DataFrame:
     df["HIGH50_PREVIOUS"] = high.rolling(50).max().shift(1)
     df["HIGH100_PREVIOUS"] = high.rolling(100).max().shift(1)
 
-    df["DIST_HIGH20"] = (
-        (df["HIGH20_PREVIOUS"] - close) / close
-    )
-    df["DIST_HIGH50"] = (
-        (df["HIGH50_PREVIOUS"] - close) / close
-    )
+    df["DIST_HIGH20"] = ((df["HIGH20_PREVIOUS"] - close) / close)
+    df["DIST_HIGH50"] = ((df["HIGH50_PREVIOUS"] - close) / close)
 
     return df
-
 
 def calculate_price_momentum(df: pd.DataFrame) -> pd.DataFrame:
     """Calculate 5D, 20D and 60D returns."""
@@ -159,7 +147,6 @@ def calculate_price_momentum(df: pd.DataFrame) -> pd.DataFrame:
     df["RETURN_60D"] = close.pct_change(60)
 
     return df
-
 
 def calculate_ma_slopes(df: pd.DataFrame) -> pd.DataFrame:
     """Calculate moving-average slopes."""
@@ -174,7 +161,6 @@ def calculate_ma_slopes(df: pd.DataFrame) -> pd.DataFrame:
 
     return df
 
-
 def calculate_volatility(df: pd.DataFrame) -> pd.DataFrame:
     """Calculate 20/50-day volatility and their ratio."""
     df = df.copy()
@@ -182,12 +168,9 @@ def calculate_volatility(df: pd.DataFrame) -> pd.DataFrame:
 
     df["VOLATILITY_20"] = daily_returns.rolling(20).std()
     df["VOLATILITY_50"] = daily_returns.rolling(50).std()
-    df["VOLATILITY_RATIO"] = (
-        df["VOLATILITY_20"] / df["VOLATILITY_50"]
-    )
+    df["VOLATILITY_RATIO"] = (df["VOLATILITY_20"] / df["VOLATILITY_50"])
 
     return df
-
 
 
 # Calculation delegates.

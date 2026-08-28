@@ -24,13 +24,11 @@ def score_price_above_sma200(df):
         return 8, ["Price above SMA200"], []
     return 0, [], []
 
-
 def score_price_above_sma50(df):
     latest = df.iloc[-1]
     if latest["Close"] > latest["SMA50"]:
         return 7, ["Price above SMA50"], []
     return 0, [], []
-
 
 def score_ma_structure(df):
     latest = df.iloc[-1]
@@ -38,20 +36,17 @@ def score_ma_structure(df):
         return 10, ["SMA20 > SMA50 > SMA200"], []
     return 0, [], []
 
-
 def score_sma20_slope(df):
     latest = df.iloc[-1]
     if latest["SMA20_SLOPE"] > 0.01:
         return 5, ["SMA20 rising"], []
     return 0, [], []
 
-
 def score_sma50_slope(df):
     latest = df.iloc[-1]
     if latest["SMA50_SLOPE"] > 0:
         return 5, ["SMA50 rising"], []
     return 0, [], []
-
 
 def score_near_20_day_resistance(df):
     latest = df.iloc[-1]
@@ -65,7 +60,6 @@ def score_near_20_day_resistance(df):
 
     return 0, [], []
 
-
 def score_near_50_day_resistance(df):
     latest = df.iloc[-1]
     distance = latest["DIST_HIGH50"]
@@ -77,7 +71,6 @@ def score_near_50_day_resistance(df):
         return 6, ["Within 5% of 50-day high"], []
 
     return 0, [], []
-
 
 def score_rsi(df):
     latest = df.iloc[-1]
@@ -94,7 +87,6 @@ def score_rsi(df):
 
     return 0, [], []
 
-
 def score_macd(df):
     latest = df.iloc[-1]
 
@@ -103,7 +95,6 @@ def score_macd(df):
 
     return 0, [], []
 
-
 def score_macd_histogram(df):
     latest = df.iloc[-1]
 
@@ -111,7 +102,6 @@ def score_macd_histogram(df):
         return 3, ["Positive MACD histogram"], []
 
     return 0, [], []
-
 
 def score_adx(df):
     latest = df.iloc[-1]
@@ -125,7 +115,6 @@ def score_adx(df):
 
     return 0, [], []
 
-
 def score_directional_movement(df):
     latest = df.iloc[-1]
 
@@ -133,7 +122,6 @@ def score_directional_movement(df):
         return 4, ["Positive directional movement"], []
 
     return 0, [], []
-
 
 def score_volume_consolidation(df):
     latest = df.iloc[-1]
@@ -143,7 +131,6 @@ def score_volume_consolidation(df):
 
     return 0, [], []
 
-
 def score_volatility_contraction(df):
     latest = df.iloc[-1]
 
@@ -151,7 +138,6 @@ def score_volatility_contraction(df):
         return 6, ["Volatility contracting"], []
 
     return 0, [], []
-
 
 def score_atr_contraction(df):
     atr_10 = df["ATR"].rolling(10).mean().iloc[-1]
@@ -161,7 +147,6 @@ def score_atr_contraction(df):
         return 3, ["ATR contracting"], []
 
     return 0, [], []
-
 
 def score_bollinger_compression(df):
     latest = df.iloc[-1]
@@ -175,7 +160,6 @@ def score_bollinger_compression(df):
 
     return 0, [], []
 
-
 def score_recent_performance(df):
     latest = df.iloc[-1]
 
@@ -184,7 +168,6 @@ def score_recent_performance(df):
 
     return 0, [], []
 
-
 def score_liquidity(df):
     latest = df.iloc[-1]
 
@@ -192,7 +175,6 @@ def score_liquidity(df):
         return 3, ["Good liquidity"], []
 
     return 0, [], []
-
 
 # ============================================================
 # AVAILABLE SCORING INDICATORS

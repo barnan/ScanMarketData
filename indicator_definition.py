@@ -26,4 +26,3 @@ class IndicatorDefinition:
     calculator_names: tuple[str, ...]
     scorer: Callable[[pd.DataFrame], tuple[float, list[str], list[str]]]
     max_points: float
-
