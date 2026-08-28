@@ -1,0 +1,68 @@
+{
+  "name": "Momentum",
+  "description": "Prioritizes trend, moving-average alignment, RSI, MACD and recent positive performance.",
+  "active_indicators": [
+    "trend_sma200",
+    "trend_sma50",
+    "ma_structure",
+    "sma20_slope",
+    "sma50_slope",
+    "rsi",
+    "macd",
+    "macd_histogram",
+    "adx",
+    "directional_movement",
+    "recent_performance",
+    "liquidity"
+  ],
+  "indicator_overrides": {
+    "trend_sma200": {
+      "weight": 10
+    },
+    "trend_sma50": {
+      "weight": 8
+    },
+    "ma_structure": {
+      "weight": 12
+    },
+    "sma20_slope": {
+      "weight": 8,
+      "minimum_slope": 0.01
+    },
+    "sma50_slope": {
+      "weight": 7,
+      "minimum_slope": 0.005
+    },
+    "rsi": {
+      "weight": 9,
+      "bullish_min": 55,
+      "bullish_max": 70,
+      "positive_min": 52,
+      "overbought": 78,
+      "positive_score_ratio": 0.44
+    },
+    "macd": {
+      "weight": 8
+    },
+    "macd_histogram": {
+      "weight": 5,
+      "minimum_histogram": 0
+    },
+    "adx": {
+      "weight": 8,
+      "strong_threshold": 25,
+      "moderate_threshold": 20,
+      "moderate_score_ratio": 0.43
+    },
+    "directional_movement": {
+      "weight": 5
+    },
+    "recent_performance": {
+      "weight": 10,
+      "minimum_return": 0.03
+    },
+    "liquidity": {
+      "weight": 5
+    }
+  }
+}
