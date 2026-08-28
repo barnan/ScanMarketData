@@ -1,9 +1,7 @@
+import argparse
 import os
 import time
 import warnings
-
-import requests
-from io import StringIO
 
 import numpy as np
 import pandas as pd
@@ -12,6 +10,7 @@ import yfinance as yf
 from indicator_definition import *
 from indicator_calculators import *
 from scoring import *
+from stock_universe import StockUniverse
 
 warnings.filterwarnings("ignore")
 
@@ -32,29 +31,6 @@ TOP_N = 30
 
 # Minimum number of historical rows required
 MIN_HISTORY = 220
-
-
-# ============================================================
-# UNIVERSE
-# ============================================================
-
-def get_sp500_tickers():
-    """Get current S&P 500 constituents from Wikipedia."""
-    url = "https://en.wikipedia.org/wiki/List_of_S%26P_500_companies"
-    headers = {"User-Agent": "Mozilla/5.0"}
-
-    response = requests.get(url, headers=headers)
-    response.raise_for_status()
-
-    tables = pd.read_html(StringIO(response.text))
-    sp500 = tables[0]
-
-    tickers = sp500["Symbol"].tolist()
-
-    # Yahoo Finance uses '-' instead of '.' for some tickers.
-    tickers = [ticker.replace(".", "-") for ticker in tickers]
-
-    return tickers
 
 
 # ============================================================
@@ -206,8 +182,100 @@ def analyze_stock(
 # MAIN SCANNER
 # ============================================================
 
-def main():
+def scan_tickers(tickers, indicators=None):
+    """Scan an already-created list of tickers.
+
+    This function deliberately knows nothing about S&P 500, Nasdaq-100,
+    Dow Jones, or any other stock universe.
+    """
+    if indicators is None:
+        indicators = ACTIVE_INDICATORS
+
+    indicators = list(indicators)
+    results = []
+
+    for i, ticker in enumerate(tickers, start=1):
+        print(f"[{i:3d}/{len(tickers)}] {ticker:8s}", end=" ")
+
+        result = analyze_stock(ticker, indicators)
+
+        if result is None:
+            print("SKIP")
+        else:
+            results.append(result)
+            print(f"Score = {result['Score']:3d}")
+
+        time.sleep(0.1)
+
+    return results
+
+
+def save_and_display_results(results):
+    """Save scan results and display the top candidates."""
     os.makedirs(OUTPUT_DIR, exist_ok=True)
+
+    results_df = pd.DataFrame(results)
+
+    if results_df.empty:
+        print("\nNo stocks passed the filters.")
+        return
+
+    results_df = (
+        results_df
+        .sort_values("Score", ascending=False)
+        .reset_index(drop=True)
+    )
+
+    results_df.to_csv(OUTPUT_FILE, index=False)
+
+    display_columns = [
+        "Ticker", "Score", "Close", "RSI", "ADX", "RelVolume",
+        "DistHigh20", "DistHigh50", "VolatilityRatio", "Return20D",
+    ]
+    display_columns = [
+        column for column in display_columns
+        if column in results_df.columns
+    ]
+
+    print()
+    print("=" * 70)
+    print("TOP PRE-BREAKOUT CANDIDATES")
+    print("=" * 70)
+    print()
+    print(results_df[display_columns].head(TOP_N).to_string(index=False))
+
+    print()
+    print(f"Full results saved to: {OUTPUT_FILE}")
+
+    top_file = os.path.join(OUTPUT_DIR, "top_candidates.csv")
+    results_df.head(TOP_N).to_csv(top_file, index=False)
+    print(f"Top {TOP_N} saved to: {top_file}")
+
+
+def parse_args():
+    parser = argparse.ArgumentParser(
+        description="Scan a configurable stock universe for pre-breakout candidates."
+    )
+    parser.add_argument(
+        "--universe",
+        default=None,
+        help="Name of a universe from the universe JSON configuration.",
+    )
+    parser.add_argument(
+        "--universes-file",
+        default="market_universes.json",
+        help="JSON file containing stock universe definitions.",
+    )
+    parser.add_argument(
+        "--tickers",
+        nargs="+",
+        help="Explicit ticker symbols. Overrides --universe.",
+    )
+    return parser.parse_args()
+
+
+def main():
+    args = parse_args()
 
     print()
     print("=" * 70)
@@ -220,105 +288,20 @@ def main():
         print(f"  - {indicator.name} ({indicator.max_points} pts)")
     print()
 
-    print("Downloading S&P 500 universe...")
-    tickers = get_sp500_tickers()
+    if args.tickers:
+        tickers = StockUniverse.normalize_tickers(args.tickers)
+        universe_name = "explicit tickers"
+    else:
+        universe = StockUniverse.from_json(args.universes_file)
+        universe_name = args.universe or "sp500"
+        tickers = universe.get_tickers(universe_name)
 
+    print(f"Universe: {universe_name}")
     print(f"Found {len(tickers)} stocks.")
     print()
 
-    results = []
-
-    for i, ticker in enumerate(tickers, start=1):
-        print(f"[{i:3d}/{len(tickers)}] {ticker:8s}", end=" ",)
-
-        result = analyze_stock(ticker, ACTIVE_INDICATORS,)
-
-        if result is None:
-            print("SKIP")
-        else:
-            results.append(result)
-            print(f"Score = {result['Score']:3d}")
-
-        # Small delay to be polite to the data provider.
-        time.sleep(0.1)
-
-    # --------------------------------------------------------
-    # Create dataframe
-    # --------------------------------------------------------
-
-    results_df = pd.DataFrame(results)
-
-    if results_df.empty:
-        print("\nNo stocks passed the filters.")
-        return
-
-    # Sort by score
-    results_df = (
-        results_df
-        .sort_values("Score", ascending=False)
-        .reset_index(drop=True)
-    )
-
-    # --------------------------------------------------------
-    # Save all results
-    # --------------------------------------------------------
-
-    results_df.to_csv(OUTPUT_FILE, index=False)
-
-    # --------------------------------------------------------
-    # Display top candidates
-    # --------------------------------------------------------
-
-    display_columns = [
-        "Ticker",
-        "Score",
-        "Close",
-        "RSI",
-        "ADX",
-        "RelVolume",
-        "DistHigh20",
-        "DistHigh50",
-        "VolatilityRatio",
-        "Return20D",
-    ]
-
-    # Only display columns that exist. This makes the output robust
-    # if you later remove optional calculations/output fields.
-    display_columns = [
-        column
-        for column in display_columns
-        if column in results_df.columns
-    ]
-
-    print()
-    print("=" * 70)
-    print("TOP PRE-BREAKOUT CANDIDATES")
-    print("=" * 70)
-    print()
-
-    print(
-
-        [display_columns]
-        .head(TOP_N)
-        .to_string(index=False)
-    )
-
-    print()
-    print(f"Full results saved to: {OUTPUT_FILE}")
-
-    # --------------------------------------------------------
-    # Save top candidates separately
-    # --------------------------------------------------------
-
-    top_file = os.path.join(OUTPUT_DIR, "top_candidates.csv")
-
-    results_df.head(TOP_N).to_csv(
-        top_file,
-        index=False,
-    )
-
-    print(f"Top {TOP_N} saved to: {top_file}")
-
+    results = scan_tickers(tickers, ACTIVE_INDICATORS)
+    save_and_display_results(results)
 
 # ============================================================
 # ENTRY POINT

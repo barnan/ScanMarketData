@@ -1,0 +1,40 @@
+{
+  "default": "sp500",
+  "universes": {
+    "sp500": {
+      "type": "wikipedia",
+      "url": "https://en.wikipedia.org/wiki/List_of_S%26P_500_companies",
+      "table": 0,
+      "ticker_column": "Symbol",
+      "description": "S&P 500 constituents"
+    },
+    "nasdaq100": {
+      "type": "wikipedia",
+      "url": "https://en.wikipedia.org/wiki/Nasdaq-100",
+      "table": 4,
+      "ticker_column": "Ticker",
+      "description": "Nasdaq-100 constituents"
+    },
+    "dow30": {
+      "type": "wikipedia",
+      "url": "https://en.wikipedia.org/wiki/Dow_Jones_Industrial_Average",
+      "table": 2,
+      "ticker_column": "Symbol",
+      "description": "Dow Jones Industrial Average constituents"
+    },
+    "sample_tech": {
+      "type": "tickers",
+      "tickers": [
+        "AAPL",
+        "MSFT",
+        "NVDA",
+        "AMZN",
+        "GOOGL",
+        "META",
+        "AVGO",
+        "AMD"
+      ],
+      "description": "Example manually maintained technology universe"
+    }
+  }
+}

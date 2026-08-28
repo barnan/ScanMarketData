@@ -1,8 +1,0 @@
-# Example custom universe
-AAPL
-MSFT
-NVDA
-AMZN
-META
-GOOGL
-TSLA
