@@ -34,6 +34,16 @@ MIN_HISTORY = 220
 
 
 # ============================================================
+# INPUT FOLDER DEFINITIONS
+# ============================================================
+
+UNIVERSES_DIR = "universes"
+STRATEGIES_DIR = "strategies"
+
+UNIVERSES_FILE = os.path.join(UNIVERSES_DIR, "market_universes.json")
+STRATEGY_FILE = os.path.join(STRATEGIES_DIR, "strategies.json")
+
+# ============================================================
 # DOWNLOAD DATA
 # ============================================================
 
@@ -263,8 +273,13 @@ def parse_args():
     )
     parser.add_argument(
         "--universes-file",
-        default="market_universes.json",
+        default=UNIVERSES_FILE,
         help="JSON file containing stock universe definitions.",
+    )
+    parser.add_argument(
+            "--strategy-file",
+            default=STRATEGY_FILE,
+            help="JSON file containing strategy definition.",
     )
     parser.add_argument(
         "--tickers",
@@ -288,6 +303,7 @@ def main():
         print(f"  - {indicator.name} ({indicator.max_points} pts)")
     print()
 
+    strategy_name = os.path.splitext(os.path.basename(args.strategy_file))[0]
     if args.tickers:
         tickers = StockUniverse.normalize_tickers(args.tickers)
         universe_name = "explicit tickers"
@@ -296,6 +312,7 @@ def main():
         universe_name = args.universe or "sp500"
         tickers = universe.get_tickers(universe_name)
 
+    print(f"Strategy: {strategy_name}")
     print(f"Universe: {universe_name}")
     print(f"Found {len(tickers)} stocks.")
     print()
