@@ -131,6 +131,10 @@ dmypy.json
 # VSCode stuff
 .vscode/
 
+# Generated result files
+results/*
+!results/.gitkeep
+
 # images
 *.png
 !UIDesign.png
