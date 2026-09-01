@@ -1,6 +1,6 @@
 {
   "name": "Aggressive breakout",
-  "description": "Emphasizes proximity to resistance, momentum and directional strength.",
+  "description": "Emphasizes proximity to resistance, momentum, and directional strength.",
   "active_indicators": [
     "resistance20",
     "resistance50",
@@ -11,37 +11,5 @@
     "directional_movement",
     "volume_consolidation",
     "recent_performance"
-  ],
-  "indicator_overrides": {
-    "resistance20": {
-      "weight": 12,
-      "close_threshold": 0.02,
-      "max_distance": 0.05,
-      "near_score_ratio": 0.50
-    },
-    "resistance50": {
-      "weight": 15,
-      "close_threshold": 0.02,
-      "max_distance": 0.05,
-      "near_score_ratio": 0.60
-    },
-    "rsi": {
-      "weight": 8,
-      "bullish_min": 55,
-      "bullish_max": 70,
-      "positive_min": 50,
-      "overbought": 78,
-      "positive_score_ratio": 0.50
-    },
-    "adx": {
-      "weight": 10,
-      "strong_threshold": 25,
-      "moderate_threshold": 20,
-      "moderate_score_ratio": 0.43
-    },
-    "recent_performance": {
-      "weight": 8,
-      "minimum_return": 0.02
-    }
-  }
+  ]
 }

@@ -1,6 +1,6 @@
 {
   "name": "Pre-breakout with rising support",
-  "description": "Bullish setup strategy emphasizing an established rising support line below all closing prices.",
+  "description": "Bullish setup strategy emphasizing a rising support line below the price.",
   "active_indicators": [
     "trend_sma200",
     "trend_sma50",
@@ -16,19 +16,5 @@
     "volatility_contraction",
     "bollinger_compression",
     "rising_support_line"
-  ],
-  "indicator_overrides": {
-    "rising_support_line": {
-      "weight": 10,
-      "lookback": 40,
-      "source_column": "Close",
-      "min_slope_pct_per_day": 0.0001,
-      "touch_tolerance_pct": 0.01,
-      "min_touches": 3,
-      "min_touch_separation": 3,
-      "ideal_touch_count": 4,
-      "ideal_current_distance_pct": 0.02,
-      "max_current_distance_pct": 0.04
-    }
-  }
+  ]
 }

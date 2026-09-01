@@ -1,6 +1,6 @@
 {
   "name": "Default balanced",
-  "description": "All scoring indicators using the original weights and thresholds.",
+  "description": "Balanced default set of bullish pre-breakout indicators.",
   "active_indicators": [
     "trend_sma200",
     "trend_sma50",
@@ -20,6 +20,5 @@
     "bollinger_compression",
     "recent_performance",
     "liquidity"
-  ],
-  "indicator_overrides": {}
+  ]
 }

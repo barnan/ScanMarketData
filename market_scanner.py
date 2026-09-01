@@ -11,6 +11,7 @@ from indicator_definition import *
 from indicator_calculators import *
 from scoring import *
 from stock_universe import StockUniverse
+from strategy_loader import load_strategy, resolve_indicators_for_strategy, resolve_strategy_path
 
 warnings.filterwarnings("ignore")
 
@@ -39,7 +40,7 @@ UNIVERSES_DIR = "universes"
 STRATEGIES_DIR = "strategies"
 
 UNIVERSES_FILE = os.path.join(UNIVERSES_DIR, "market_universes.json")
-STRATEGY_FILE = os.path.join(STRATEGIES_DIR, "strategies.json")
+STRATEGY_FILE = os.path.join(STRATEGIES_DIR, "default.json")
 
 # ============================================================
 # DOWNLOAD DATA
@@ -275,9 +276,11 @@ def parse_args():
         help="JSON file containing stock universe definitions.",
     )
     parser.add_argument(
-            "--strategy-file",
-            default=STRATEGY_FILE,
-            help="JSON file containing strategy definition.",
+        "--strategy",
+        "--strategy-file",
+        dest="strategy_file",
+        default=STRATEGY_FILE,
+        help="JSON file containing strategy definition.",
     )
     parser.add_argument(
         "--tickers",
@@ -296,12 +299,16 @@ def main():
     print("=" * 70)
     print()
 
+    strategy_path = resolve_strategy_path(args.strategy_file)
+    strategy = load_strategy(strategy_path)
+    ACTIVE_INDICATORS[:] = resolve_indicators_for_strategy(strategy)
+
     print("List of the active indicators:")
     for indicator in ACTIVE_INDICATORS:
         print(f"  - {indicator.name} ({indicator.max_points} pts)")
     print()
 
-    strategy_name = os.path.splitext(os.path.basename(args.strategy_file))[0]
+    strategy_name = os.path.splitext(os.path.basename(strategy_path))[0]
     if args.tickers:
         tickers = StockUniverse.normalize_tickers(args.tickers)
         universe_name = "explicit tickers"
