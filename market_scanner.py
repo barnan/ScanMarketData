@@ -23,10 +23,8 @@ DATA_PERIOD = "2y"
 DATA_INTERVAL = "1d"
 
 OUTPUT_DIR = "results"
-OUTPUT_FILE = os.path.join(OUTPUT_DIR, "breakout_candidates.csv")
+OUTPUT_FILE = os.path.join(OUTPUT_DIR, "bullish_setup.csv")
 
-MIN_PRICE = 1.0                             # GPT -> 5.0
-MIN_AVG_DOLLAR_VOLUME = 1_000_000           # GPT -> 1_000_000
 TOP_N = 30
 
 # Minimum number of historical rows required

@@ -1,8 +1,8 @@
 
 import pandas as pd
 
-from dataclasses import dataclass
-from typing import Callable
+from dataclasses import dataclass, field
+from typing import Any, Callable
 
 # ============================================================
 # INDICATOR FRAMEWORK
@@ -26,3 +26,4 @@ class IndicatorDefinition:
     calculator_names: tuple[str, ...]
     scorer: Callable[[pd.DataFrame], tuple[float, list[str], list[str]]]
     max_points: float
+    parameters: dict[str, Any] = field(default_factory=dict)

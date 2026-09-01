@@ -7,6 +7,7 @@ from ta.volatility import AverageTrueRange, BollingerBands
 from typing import Callable, Iterable
 
 from indicator_definition import *
+from support_line_calculator import calculate_rising_support_line
 
 
 # ============================================================
@@ -188,6 +189,7 @@ CALCULATOR_DELEGATES: dict[str, Callable[[pd.DataFrame], pd.DataFrame]] = {
     "price_momentum": calculate_price_momentum,
     "ma_slopes": calculate_ma_slopes,
     "volatility": calculate_volatility,
+    "rising_support_line": calculate_rising_support_line
 }
 
 

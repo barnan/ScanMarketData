@@ -4,12 +4,13 @@ import pandas as pd
 from typing import Iterable
 
 from indicator_definition import *
+from scoring_support_line import score_rising_support_line
 
 
 # How close should price be to resistance?
 RESISTANCE_DISTANCE = 0.05  # 5%
 MIN_PRICE = 1.0                             # GPT -> 5.0
-MIN_AVG_DOLLAR_VOLUME = 1_000_000           # GPT -> 1_000_000
+MIN_AVG_DOLLAR_VOLUME = 1_000               # GPT -> 1_000_000
 
 # ============================================================
 # SCORING DELEGATES
@@ -199,109 +200,145 @@ INDICATORS: dict[str, IndicatorDefinition] = {
         calculator_names=("moving_averages",),
         scorer=score_price_above_sma200,
         max_points=8,
+        parameters=None,
     ),
     "trend_sma50": IndicatorDefinition(
         name="Price above SMA50",
         calculator_names=("moving_averages",),
         scorer=score_price_above_sma50,
         max_points=7,
+        parameters=None,
     ),
     "ma_structure": IndicatorDefinition(
         name="Moving average structure",
         calculator_names=("moving_averages",),
         scorer=score_ma_structure,
         max_points=10,
+        parameters=None,
     ),
     "sma20_slope": IndicatorDefinition(
         name="SMA20 slope",
         calculator_names=("moving_averages", "ma_slopes"),
         scorer=score_sma20_slope,
         max_points=5,
+        parameters=None,
     ),
     "sma50_slope": IndicatorDefinition(
         name="SMA50 slope",
         calculator_names=("moving_averages", "ma_slopes"),
         scorer=score_sma50_slope,
         max_points=5,
+        parameters=None,
     ),
     "resistance20": IndicatorDefinition(
         name="20-day resistance",
         calculator_names=("resistance",),
         scorer=score_near_20_day_resistance,
         max_points=8,
+        parameters=None,
     ),
     "resistance50": IndicatorDefinition(
         name="50-day resistance",
         calculator_names=("resistance",),
         scorer=score_near_50_day_resistance,
         max_points=10,
+        parameters=None,
     ),
     "rsi": IndicatorDefinition(
         name="RSI",
         calculator_names=("rsi",),
         scorer=score_rsi,
         max_points=6,
+        parameters=None,
     ),
     "macd": IndicatorDefinition(
         name="MACD",
         calculator_names=("macd",),
         scorer=score_macd,
         max_points=6,
+        parameters=None,
     ),
     "macd_histogram": IndicatorDefinition(
         name="MACD histogram",
         calculator_names=("macd",),
         scorer=score_macd_histogram,
         max_points=3,
+        parameters=None,
     ),
     "adx": IndicatorDefinition(
         name="ADX",
         calculator_names=("adx",),
         scorer=score_adx,
         max_points=7,
+        parameters=None,
     ),
     "directional_movement": IndicatorDefinition(
         name="+DI vs -DI",
         calculator_names=("adx",),
         scorer=score_directional_movement,
         max_points=4,
+        parameters=None,
     ),
     "volume_consolidation": IndicatorDefinition(
         name="Volume consolidation",
         calculator_names=("volume",),
         scorer=score_volume_consolidation,
         max_points=4,
+        parameters=None,
     ),
     "volatility_contraction": IndicatorDefinition(
         name="Volatility contraction",
         calculator_names=("volatility",),
         scorer=score_volatility_contraction,
         max_points=6,
+        parameters=None,
     ),
     "atr_contraction": IndicatorDefinition(
         name="ATR contraction",
         calculator_names=("atr",),
         scorer=score_atr_contraction,
         max_points=3,
+        parameters=None,
     ),
     "bollinger_compression": IndicatorDefinition(
         name="Bollinger Band compression",
         calculator_names=("bollinger_bands",),
         scorer=score_bollinger_compression,
         max_points=4,
+        parameters=None,
     ),
     "recent_performance": IndicatorDefinition(
         name="Recent performance",
         calculator_names=("price_momentum",),
         scorer=score_recent_performance,
         max_points=3,
+        parameters=None,
     ),
     "liquidity": IndicatorDefinition(
         name="Liquidity",
         calculator_names=("volume",),
         scorer=score_liquidity,
         max_points=3,
+        parameters=None,
     ),
+    "rising_support_line": IndicatorDefinition(
+        name="Rising support line",
+        calculator_names=("rising_support_line",),
+        scorer=score_rising_support_line,
+        max_points=10,
+        parameters={
+            "lookback": 40,
+            "source_column": "Close",
+            "min_slope_pct_per_day": 0.0001,
+            "touch_tolerance_pct": 0.01,
+            "min_touches": 3,
+            "min_touch_separation": 3,
+            "weight": 10,
+            "ideal_touch_count": 4,
+            "ideal_current_distance_pct": 0.02,
+            "max_current_distance_pct": 0.04,
+        },
+    )
 }
 
 
