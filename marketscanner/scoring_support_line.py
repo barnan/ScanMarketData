@@ -12,6 +12,7 @@ def _get(parameters: dict[str, Any] | None, key: str, default: Any) -> Any:
 
 def score_rising_support_line(
     df: pd.DataFrame,
+    max_points: float,
     parameters: dict[str, Any] | None = None,
 ) -> tuple[float, list[str], list[str]]:
     """Score the quality of a rising support-line setup.
@@ -22,11 +23,10 @@ def score_rising_support_line(
       - price remaining above the line,
       - current price being reasonably close to support.
 
-    The function returns a score from 0 to `weight`.
+    The function returns a score from 0 to `max_points`.
     """
     latest = df.iloc[-1]
 
-    weight = float(_get(parameters, "weight", 10))
     min_touches = int(_get(parameters, "min_touches", 3))
     ideal_touch_count = int(_get(parameters, "ideal_touch_count", 4))
     max_current_distance_pct = float(
@@ -72,7 +72,7 @@ def score_rising_support_line(
         )
 
     # Weight the two geometric properties equally.
-    score = weight * (0.5 * touch_factor + 0.5 * proximity_factor)
+    score = max_points * (0.5 * touch_factor + 0.5 * proximity_factor)
 
     reasons = [
         f"Rising support line with {touches} touches",

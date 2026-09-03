@@ -4,8 +4,8 @@ import json
 from dataclasses import dataclass
 from pathlib import Path
 
-from indicator_definition import IndicatorDefinition
-from scoring import INDICATORS
+from .indicator_definition import IndicatorDefinition
+from .scoring import INDICATORS
 
 
 @dataclass(frozen=True)

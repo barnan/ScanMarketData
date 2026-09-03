@@ -1,17 +1,21 @@
 import argparse
-import os
 import time
 import warnings
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
 import yfinance as yf
 
-from indicator_definition import *
-from indicator_calculators import *
-from scoring import *
-from stock_universe import StockUniverse
-from strategy_loader import load_strategy, resolve_indicators_for_strategy, resolve_strategy_path
+from .indicator_definition import *
+from .indicator_calculators import *
+from .scoring import *
+from .stock_universe import StockUniverse
+from .strategy_loader import (
+    load_strategy,
+    resolve_indicators_for_strategy,
+    resolve_strategy_path,
+)
 
 warnings.filterwarnings("ignore")
 
@@ -23,8 +27,11 @@ warnings.filterwarnings("ignore")
 DATA_PERIOD = "2y"
 DATA_INTERVAL = "1d"
 
-OUTPUT_DIR = "results"
-OUTPUT_FILE = os.path.join(OUTPUT_DIR, "bullish_setup.csv")
+PACKAGE_DIR = Path(__file__).resolve().parent
+PROJECT_DIR = PACKAGE_DIR.parent
+
+OUTPUT_DIR = PROJECT_DIR / "results"
+OUTPUT_FILE = OUTPUT_DIR / "bullish_setup.csv"
 
 TOP_N = 30
 
@@ -36,26 +43,35 @@ MIN_HISTORY = 220
 # INPUT FOLDER DEFINITIONS
 # ============================================================
 
-UNIVERSES_DIR = "universes"
-STRATEGIES_DIR = "strategies"
+UNIVERSES_DIR = PACKAGE_DIR / "universes"
+STRATEGIES_DIR = PACKAGE_DIR / "strategies"
 
-UNIVERSES_FILE = os.path.join(UNIVERSES_DIR, "market_universes.json")
-STRATEGY_FILE = os.path.join(STRATEGIES_DIR, "default.json")
+UNIVERSES_FILE = UNIVERSES_DIR / "market_universes.json"
+STRATEGY_FILE = STRATEGIES_DIR / "default.json"
 
 # ============================================================
 # DOWNLOAD DATA
 # ============================================================
 
-def download_stock(ticker):
+def download_stock(ticker, as_of=None):
     """Download historical OHLCV data."""
     try:
+        download_kwargs = {
+            "period": DATA_PERIOD,
+            "interval": DATA_INTERVAL,
+            "auto_adjust": True,
+            "progress": False,
+            "threads": False,
+        }
+        if as_of is not None:
+            as_of_date = pd.Timestamp(as_of).normalize()
+            download_kwargs.pop("period")
+            download_kwargs["start"] = as_of_date - pd.DateOffset(years=2)
+            download_kwargs["end"] = as_of_date + pd.Timedelta(days=1)
+
         df = yf.download(
             ticker,
-            period=DATA_PERIOD,
-            interval=DATA_INTERVAL,
-            auto_adjust=True,
-            progress=False,
-            threads=False,
+            **download_kwargs,
         )
 
         if df.empty:
@@ -93,13 +109,14 @@ def download_stock(ticker):
 def analyze_stock(
     ticker,
     indicators: Iterable[IndicatorDefinition] | None = None,
+    as_of=None,
 ):
     if indicators is None:
         indicators = ACTIVE_INDICATORS
 
     indicators = list(indicators)
 
-    df = download_stock(ticker)
+    df = download_stock(ticker, as_of=as_of)
 
     if df is None:
         return None
@@ -191,7 +208,7 @@ def analyze_stock(
 # MAIN SCANNER
 # ============================================================
 
-def scan_tickers(tickers, indicators=None):
+def scan_tickers(tickers, indicators=None, as_of=None):
     """Scan an already-created list of tickers.
 
     This function deliberately knows nothing about S&P 500, Nasdaq-100,
@@ -206,7 +223,7 @@ def scan_tickers(tickers, indicators=None):
     for i, ticker in enumerate(tickers, start=1):
         print(f"[{i:3d}/{len(tickers)}] {ticker:8s}", end=" ")
 
-        result = analyze_stock(ticker, indicators)
+        result = analyze_stock(ticker, indicators, as_of=as_of)
 
         if result is None:
             print("SKIP")
@@ -221,7 +238,7 @@ def scan_tickers(tickers, indicators=None):
 
 def save_and_display_results(results):
     """Save scan results and display the top candidates."""
-    os.makedirs(OUTPUT_DIR, exist_ok=True)
+    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
     results_df = pd.DataFrame(results)
 
@@ -234,8 +251,6 @@ def save_and_display_results(results):
         .sort_values("Score", ascending=False)
         .reset_index(drop=True)
     )
-
-    results_df.to_csv(OUTPUT_FILE, index=False)
 
     display_columns = [
         "Ticker", "Score", "Close", "RSI", "ADX", "RelVolume",
@@ -256,7 +271,7 @@ def save_and_display_results(results):
     print()
     print(f"Full results saved to: {OUTPUT_FILE}")
 
-    top_file = os.path.join(OUTPUT_DIR, "top_candidates.csv")
+    top_file = OUTPUT_DIR / "top_candidates.csv"
     results_df.head(TOP_N).to_csv(top_file, index=False)
     print(f"Top {TOP_N} saved to: {top_file}")
 
@@ -287,6 +302,12 @@ def parse_args():
         nargs="+",
         help="Explicit ticker symbols. Overrides --universe.",
     )
+    parser.add_argument(
+        "--as-of",
+        type= str,
+        default=None,
+        help="Analyze only data available on or before this date (YYYY-MM-DD).",
+    )
     return parser.parse_args()
 
 
@@ -308,7 +329,7 @@ def main():
         print(f"  - {indicator.name} ({indicator.max_points} pts)")
     print()
 
-    strategy_name = os.path.splitext(os.path.basename(strategy_path))[0]
+    strategy_name = strategy_path.stem
     if args.tickers:
         tickers = StockUniverse.normalize_tickers(args.tickers)
         universe_name = "explicit tickers"
@@ -322,7 +343,7 @@ def main():
     print(f"Found {len(tickers)} stocks.")
     print()
 
-    results = scan_tickers(tickers, ACTIVE_INDICATORS)
+    results = scan_tickers(tickers, ACTIVE_INDICATORS, as_of=args.as_of)
     save_and_display_results(results)
 
 # ============================================================

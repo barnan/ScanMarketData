@@ -1,0 +1,1 @@
+"""Bullish pre-breakout market scanner package."""

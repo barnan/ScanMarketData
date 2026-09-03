@@ -13,7 +13,7 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
-from supportline_definition import SupportLineParameters
+from .supportline_definition import SupportLineParameters
 
 
 # helper methods are private to this module, so they are prefixed with an underscore *****************************
