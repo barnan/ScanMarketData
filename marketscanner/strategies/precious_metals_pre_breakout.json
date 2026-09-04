@@ -1,0 +1,75 @@
+{
+  "name": "Precious metals pre-breakout",
+  "description": "Sector-aware stock setup for precious-metals candidates.",
+  "filters": {
+    "min_price": 5.0,
+    "min_avg_dollar_volume": 1000000,
+    "max_distance_above_resistance": 0.08
+  },
+  "context": {
+    "general_market": {
+      "weight": 15,
+      "benchmarks": ["sp500", "vix", "dxy", "real_yield"]
+    },
+    "sector": {
+      "weight": 25,
+      "benchmarks": ["gold", "silver", "gdx", "gdxj", "slv"],
+      "breadth": true
+    }
+  },
+  "active_indicators": [
+    "trend_sma200",
+    "sma50_slope",
+    "resistance20",
+    "rsi",
+    "volume_consolidation",
+    "volatility_contraction",
+    "rising_support_line",
+    "horizontal_support",
+    "triangle_compression",
+    "breakout_retest"
+  ],
+  "indicator_overrides": {
+    "trend_sma200": {
+      "max_points": 5
+    },
+    "sma50_slope": {
+      "max_points": 5
+    },
+    "resistance20": {
+      "max_points": 10
+    },
+    "rsi": {
+      "max_points": 3
+    },
+    "volume_consolidation": {
+      "max_points": 2
+    },
+    "volatility_contraction": {
+      "max_points": 4
+    },
+    "rising_support_line": {
+      "max_points": 12,
+      "parameters": {
+        "lookback": 60,
+        "touch_tolerance_pct": 0.015,
+        "min_touches": 3,
+        "ideal_current_distance_pct": 0.02,
+        "max_current_distance_pct": 0.04
+      }
+    },
+    "horizontal_support": {
+      "max_points": 8,
+      "parameters": {
+        "maximum_distance_pct": 0.03,
+        "min_touches": 2
+      }
+    },
+    "triangle_compression": {
+      "max_points": 12
+    },
+    "breakout_retest": {
+      "max_points": 8
+    }
+  }
+}

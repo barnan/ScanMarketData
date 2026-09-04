@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 from .indicator_definition import IndicatorDefinition
 from .scoring import INDICATORS
@@ -13,6 +14,9 @@ class StrategyDefinition:
     name: str
     description: str = ""
     active_indicators: tuple[str, ...] = ()
+    indicator_overrides: dict[str, dict[str, Any]] | None = None
+    filters: dict[str, Any] | None = None
+    context: dict[str, Any] | None = None
 
 
 def resolve_strategy_path(path: str | Path) -> Path:
@@ -55,14 +59,17 @@ def load_strategy(path: str | Path) -> StrategyDefinition:
         name=config.get("name", resolved.stem),
         description=config.get("description", ""),
         active_indicators=tuple(config.get("active_indicators", list(INDICATORS))),
+        indicator_overrides=config.get("indicator_overrides", {}),
+        filters=config.get("filters", {}),
+        context=config.get("context", {}),
     )
 
 
-def resolve_indicators_for_strategy(
-    strategy: StrategyDefinition,
-) -> list[IndicatorDefinition]:
+def resolve_indicators_for_strategy(strategy: StrategyDefinition,) -> list[IndicatorDefinition]:
     """Build the active indicator list from the canonical Python definitions."""
     selected: list[IndicatorDefinition] = []
+
+    overrides = strategy.indicator_overrides or {}
 
     for indicator_key in strategy.active_indicators:
         if indicator_key not in INDICATORS:
@@ -72,14 +79,17 @@ def resolve_indicators_for_strategy(
                 f"Available indicators: {available}"
             )
 
-        base = INDICATORS[indicator_key]
+        base_indicator = INDICATORS[indicator_key]
+        override = overrides.get(indicator_key, {})
+        parameters = dict(base_indicator.parameters or {})
+        parameters.update(override.get("parameters", {}))
         selected.append(
             IndicatorDefinition(
-                name=base.name,
-                calculator_names=base.calculator_names,
-                scorer=base.scorer,
-                max_points=base.max_points,
-                parameters=dict(base.parameters or {}),
+                name=base_indicator.name,
+                calculator_names=base_indicator.calculator_names,
+                scorer=base_indicator.scorer,
+                max_points=override.get("max_points", base_indicator.max_points),
+                parameters=parameters,
             )
         )
 

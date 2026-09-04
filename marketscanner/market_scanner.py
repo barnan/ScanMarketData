@@ -9,12 +9,12 @@ import yfinance as yf
 
 from .indicator_definition import *
 from .indicator_calculators import *
+from .market_context import calculate_market_context, calculate_sector_context
 from .scoring import *
 from .stock_universe import StockUniverse
 from .strategy_loader import (
     load_strategy,
     resolve_indicators_for_strategy,
-    resolve_strategy_path,
 )
 
 warnings.filterwarnings("ignore")
@@ -46,8 +46,8 @@ MIN_HISTORY = 220
 UNIVERSES_DIR = PACKAGE_DIR / "universes"
 STRATEGIES_DIR = PACKAGE_DIR / "strategies"
 
-UNIVERSES_FILE = UNIVERSES_DIR / "market_universes.json"
-STRATEGY_FILE = STRATEGIES_DIR / "default.json"
+DEFAULT_UNIVERSES_FILE = UNIVERSES_DIR / "market_universes.json"
+DEFAULT_STRATEGY_FILE = STRATEGIES_DIR / "default.json"
 
 # ============================================================
 # DOWNLOAD DATA
@@ -102,6 +102,33 @@ def download_stock(ticker, as_of=None):
         return None
 
 
+def download_context_series(symbol, as_of=None):
+    """Download one benchmark close series for optional context scoring."""
+    try:
+        download_kwargs = {
+            "period": DATA_PERIOD,
+            "interval": DATA_INTERVAL,
+            "auto_adjust": True,
+            "progress": False,
+            "threads": False,
+        }
+        if as_of is not None:
+            as_of_date = pd.Timestamp(as_of).normalize()
+            download_kwargs.pop("period")
+            download_kwargs["start"] = as_of_date - pd.DateOffset(years=2)
+            download_kwargs["end"] = as_of_date + pd.Timedelta(days=1)
+
+        frame = yf.download(symbol, **download_kwargs)
+        if isinstance(frame.columns, pd.MultiIndex):
+            frame.columns = frame.columns.get_level_values(0)
+        if frame.empty or "Close" not in frame.columns:
+            return None
+        return frame[["Close"]].dropna()
+    except Exception as error:
+        print(f"ERROR downloading context {symbol}: {error}")
+        return None
+
+
 # ============================================================
 # SINGLE STOCK ANALYSIS
 # ============================================================
@@ -110,9 +137,12 @@ def analyze_stock(
     ticker,
     indicators: Iterable[IndicatorDefinition] | None = None,
     as_of=None,
+    context_score: float | None = None,
+    context_weight: float = 0.0,
+    filters: dict | None = None,
 ):
     if indicators is None:
-        indicators = ACTIVE_INDICATORS
+        indicators = DEFAULT_INDICATORS
 
     indicators = list(indicators)
 
@@ -132,19 +162,41 @@ def analyze_stock(
         .iloc[-1]
     )
 
-    if latest_raw["Close"] < MIN_PRICE:
+    filters = filters or {}
+    minimum_price = float(filters.get("min_price", MIN_PRICE))
+    minimum_dollar_volume = float(
+        filters.get("min_avg_dollar_volume", MIN_AVG_DOLLAR_VOLUME)
+    )
+
+    if latest_raw["Close"] < minimum_price:
         return None
 
-    if avg_dollar_volume < MIN_AVG_DOLLAR_VOLUME:
+    if avg_dollar_volume < minimum_dollar_volume:
         return None
 
     # Only run calculators required by the selected scoring delegates.
-    df = calculate_selected_indicators(df, indicators)
+    df = calculate_selected_indicators(df, indicators, as_of=as_of)
+
+    maximum_resistance_extension = filters.get("max_distance_above_resistance")
+    if (
+        maximum_resistance_extension is not None
+        and "HIGH20_PREVIOUS" in df.columns
+        and pd.notna(df["HIGH20_PREVIOUS"].iloc[-1])
+        and latest_raw["Close"]
+        > df["HIGH20_PREVIOUS"].iloc[-1] * (1 + float(maximum_resistance_extension))
+    ):
+        return None
 
     score, reasons, warnings_list = calculate_breakout_score(
         df,
         indicators,
     )
+
+    if context_score is not None and context_weight > 0:
+        score = round(
+            score * (1 - context_weight / 100)
+            + context_score * (context_weight / 100)
+        )
 
     latest = df.iloc[-1]
 
@@ -169,8 +221,12 @@ def analyze_stock(
 
     result = {
         "Ticker": ticker,
+        "AsOf": pd.Timestamp(as_of).normalize().strftime("%Y-%m-%d")
+        if as_of is not None
+        else df.index[-1].strftime("%Y-%m-%d"),
         "Date": df.index[-1].strftime("%Y-%m-%d"),
         "Score": score,
+        "ContextScore": round(context_score, 2) if context_score is not None else np.nan,
         "Close": round(float(latest["Close"]), 2),
 
         "SMA20": value("SMA20"),
@@ -208,14 +264,21 @@ def analyze_stock(
 # MAIN SCANNER
 # ============================================================
 
-def scan_tickers(tickers, indicators=None, as_of=None):
+def scan_tickers(
+    tickers,
+    indicators=None,
+    as_of=None,
+    context_score: float | None = None,
+    context_weight: float = 0.0,
+    filters: dict | None = None,
+):
     """Scan an already-created list of tickers.
 
     This function deliberately knows nothing about S&P 500, Nasdaq-100,
     Dow Jones, or any other stock universe.
     """
     if indicators is None:
-        indicators = ACTIVE_INDICATORS
+        indicators = DEFAULT_INDICATORS
 
     indicators = list(indicators)
     results = []
@@ -223,7 +286,14 @@ def scan_tickers(tickers, indicators=None, as_of=None):
     for i, ticker in enumerate(tickers, start=1):
         print(f"[{i:3d}/{len(tickers)}] {ticker:8s}", end=" ")
 
-        result = analyze_stock(ticker, indicators, as_of=as_of)
+        result = analyze_stock(
+            ticker,
+            indicators,
+            as_of=as_of,
+            context_score=context_score,
+            context_weight=context_weight,
+            filters=filters,
+        )
 
         if result is None:
             print("SKIP")
@@ -287,14 +357,14 @@ def parse_args():
     )
     parser.add_argument(
         "--universes-file",
-        default=UNIVERSES_FILE,
+        default=DEFAULT_UNIVERSES_FILE,
         help="JSON file containing stock universe definitions.",
     )
     parser.add_argument(
         "--strategy",
         "--strategy-file",
         dest="strategy_file",
-        default=STRATEGY_FILE,
+        default=DEFAULT_STRATEGY_FILE,
         help="JSON file containing strategy definition.",
     )
     parser.add_argument(
@@ -320,16 +390,15 @@ def main():
     print("=" * 70)
     print()
 
-    strategy_path = resolve_strategy_path(args.strategy_file)
-    strategy = load_strategy(strategy_path)
-    ACTIVE_INDICATORS[:] = resolve_indicators_for_strategy(strategy)
+    strategy = load_strategy(args.strategy_file)
+    selected_indicators = resolve_indicators_for_strategy(strategy)
 
     print("List of the active indicators:")
-    for indicator in ACTIVE_INDICATORS:
+    for indicator in selected_indicators:
         print(f"  - {indicator.name} ({indicator.max_points} pts)")
     print()
 
-    strategy_name = strategy_path.stem
+    strategy_name = strategy.name
     if args.tickers:
         tickers = StockUniverse.normalize_tickers(args.tickers)
         universe_name = "explicit tickers"
@@ -343,7 +412,46 @@ def main():
     print(f"Found {len(tickers)} stocks.")
     print()
 
-    results = scan_tickers(tickers, ACTIVE_INDICATORS, as_of=args.as_of)
+    context_score = None
+    context_weight = 0.0
+    if strategy.context:
+        symbols = {
+            "sp500": "^GSPC",
+            "vix": "^VIX",
+            "dxy": "DX-Y.NYB",
+            "gold": "GC=F",
+            "silver": "SI=F",
+            "gdx": "GDX",
+            "gdxj": "GDXJ",
+            "slv": "SLV",
+        }
+        context_frames = {
+            name: frame
+            for name, symbol in symbols.items()
+            if (frame := download_context_series(symbol, as_of=args.as_of)) is not None
+        }
+        if "sp500" in context_frames:
+            market_context = calculate_market_context(context_frames, args.as_of or pd.Timestamp.today())
+            sector_context = calculate_sector_context(context_frames, args.as_of or pd.Timestamp.today())
+            context_score = 100 * (market_context.score + sector_context.score) / 24
+            context_config = strategy.context or {}
+            context_weight = float(
+                context_config.get("general_market", {}).get("weight", 15)
+                + context_config.get("sector", {}).get("weight", 25)
+            )
+            print(f"Market context score: {market_context.score:.1f}/9")
+            print(f"Sector context score: {sector_context.score:.1f}/15")
+            for warning in market_context.warnings + sector_context.warnings:
+                print(f"Context warning: {warning}")
+
+    results = scan_tickers(
+        tickers,
+        selected_indicators,
+        as_of=args.as_of,
+        context_score=context_score,
+        context_weight=context_weight,
+        filters=strategy.filters,
+    )
     save_and_display_results(results)
 
 # ============================================================

@@ -177,6 +177,33 @@ def score_liquidity(df, max_points, parameters=None):
 
     return 0, [], []
 
+def score_horizontal_support(df, max_points, parameters=None):
+    latest = df.iloc[-1]
+    touches = int(latest.get("HORIZONTAL_SUPPORT_TOUCHES", 0) or 0)
+    distance = latest.get("HORIZONTAL_SUPPORT_DISTANCE_PCT")
+    if not bool(latest.get("HORIZONTAL_SUPPORT_HOLDS", False)) or pd.isna(distance):
+        return 0, [], ["No valid horizontal support hold"]
+    parameters = parameters or {}
+    maximum = float(parameters.get("maximum_distance_pct", 0.03))
+    minimum_touches = int(parameters.get("min_touches", 2))
+    if distance < 0 or distance > maximum or touches < minimum_touches:
+        return 0, [], []
+    proximity = 1 - float(distance) / maximum
+    return round(max_points * proximity, 2), [f"Horizontal support with {touches} touches"], []
+
+def score_triangle_compression(df, max_points, parameters=None):
+    latest = df.iloc[-1]
+    if not bool(latest.get("TRIANGLE_VALID", False)):
+        return 0, [], []
+    if not bool(latest.get("TRIANGLE_NEAR_SUPPORT", False)):
+        return max_points * 0.4, ["Contracting triangle"], []
+    return max_points, ["Contracting triangle near support"], []
+
+def score_breakout_retest(df, max_points, parameters=None):
+    if bool(df.iloc[-1].get("BREAKOUT_RETEST", False)):
+        return max_points, ["Breakout retest holding"], []
+    return 0, [], []
+
 # ============================================================
 # AVAILABLE SCORING INDICATORS
 #
@@ -184,7 +211,7 @@ def score_liquidity(df, max_points, parameters=None):
 #
 # Example:
 #
-# ACTIVE_INDICATORS = [
+# DEFAULT_INDICATORS = [
 #     INDICATORS["trend_sma200"],
 #     INDICATORS["rsi"],
 #     INDICATORS["macd"],
@@ -321,6 +348,27 @@ INDICATORS: dict[str, IndicatorDefinition] = {
         max_points=3,
         parameters=None,
     ),
+    "horizontal_support": IndicatorDefinition(
+        name="Horizontal support",
+        calculator_names=("horizontal_support",),
+        scorer=score_horizontal_support,
+        max_points=8,
+        parameters={"maximum_distance_pct": 0.03, "min_touches": 2},
+    ),
+    "triangle_compression": IndicatorDefinition(
+        name="Triangle compression",
+        calculator_names=("triangle_compression",),
+        scorer=score_triangle_compression,
+        max_points=10,
+        parameters={},
+    ),
+    "breakout_retest": IndicatorDefinition(
+        name="Breakout retest",
+        calculator_names=("breakout_retest",),
+        scorer=score_breakout_retest,
+        max_points=8,
+        parameters={"breakout_buffer": 0.005, "maximum_retest_distance": 0.03},
+    ),
     "rising_support_line": IndicatorDefinition(
         name="Rising support line",
         calculator_names=("rising_support_line",),
@@ -346,7 +394,7 @@ INDICATORS: dict[str, IndicatorDefinition] = {
 # By default, all indicators are enabled, preserving the behavior
 # of the original scanner (apart from making the score relative to
 # the selected indicators; see calculate_breakout_score()).
-ACTIVE_INDICATORS = list(INDICATORS.values())
+DEFAULT_INDICATORS = list(INDICATORS.values())
 
 
 def calculate_breakout_score(
@@ -364,7 +412,7 @@ def calculate_breakout_score(
     The returned score is rounded to the nearest integer.
     """
     if indicators is None:
-        indicators = ACTIVE_INDICATORS
+        indicators = DEFAULT_INDICATORS
 
     indicators = list(indicators)
 

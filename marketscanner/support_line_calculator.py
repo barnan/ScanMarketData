@@ -50,7 +50,8 @@ def _touch_indices(
 
     return selected
 
-# main calculator function is public and is called by the scanner *********************************************************
+# main calculator function is public and is called by the scanner
+# *********************************************************
 
 def calculate_rising_support_line(
     df: pd.DataFrame,

@@ -173,10 +173,103 @@ def calculate_volatility(df: pd.DataFrame) -> pd.DataFrame:
 
     return df
 
+def calculate_horizontal_support(df: pd.DataFrame) -> pd.DataFrame:
+    """Estimate recent horizontal support from local lows."""
+    df = df.copy()
+    tolerance = 0.03
+    lows = df["Low"].rolling(3, center=True).min()
+    pivot_mask = df["Low"].eq(lows)
+    pivot_values = df.loc[pivot_mask, "Low"].tail(60)
+
+    support = float("nan")
+    touches = 0
+    if len(pivot_values) >= 2:
+        candidates = pivot_values.to_numpy(dtype=float)
+        for candidate in candidates:
+            clustered = abs(candidates / candidate - 1) <= tolerance
+            if int(clustered.sum()) > touches:
+                touches = int(clustered.sum())
+                support = float(candidates[clustered].mean())
+
+    df["HORIZONTAL_SUPPORT"] = support
+    df["HORIZONTAL_SUPPORT_TOUCHES"] = touches
+    df["HORIZONTAL_SUPPORT_DISTANCE_PCT"] = (
+        df["Close"] / support - 1 if pd.notna(support) else float("nan")
+    )
+    df["HORIZONTAL_SUPPORT_HOLDS"] = (
+        df["Close"] >= support * (1 - tolerance)
+        if pd.notna(support)
+        else False
+    )
+    return df
+
+def calculate_triangle_compression(df: pd.DataFrame) -> pd.DataFrame:
+    """Calculate converging-envelope geometry for a triangle setup."""
+    df = df.copy()
+    lookback = 60
+    window = df.tail(lookback)
+    if len(window) < lookback:
+        df["TRIANGLE_VALID"] = False
+        df["TRIANGLE_NEAR_SUPPORT"] = False
+        return df
+
+    x = pd.Series(range(len(window)), dtype=float)
+    high_values = pd.Series(window["High"].to_numpy(dtype=float))
+    low_values = pd.Series(window["Low"].to_numpy(dtype=float))
+    high_slope = float(high_values.corr(x))
+    low_slope = float(low_values.corr(x))
+    high_start = float(window["High"].head(10).mean())
+    high_end = float(window["High"].tail(10).mean())
+    low_start = float(window["Low"].head(10).mean())
+    low_end = float(window["Low"].tail(10).mean())
+    initial_width = high_start - low_start
+    current_width = high_end - low_end
+    width_ratio = current_width / initial_width if initial_width > 0 else float("nan")
+
+    df["TRIANGLE_HIGH_SLOPE"] = high_slope
+    df["TRIANGLE_LOW_SLOPE"] = low_slope
+    df["TRIANGLE_WIDTH_RATIO"] = width_ratio
+    df["TRIANGLE_VALID"] = bool(
+        pd.notna(width_ratio)
+        and high_slope < 0
+        and low_slope > 0
+        and width_ratio <= 0.8
+    )
+    df["TRIANGLE_NEAR_SUPPORT"] = bool(
+        pd.notna(width_ratio)
+        and current_width > 0
+        and (float(window["Close"].iloc[-1]) - low_end) / current_width <= 0.4
+    )
+    return df
+
+def calculate_breakout_retest(df: pd.DataFrame) -> pd.DataFrame:
+    """Detect a prior resistance breakout followed by a current retest."""
+    df = df.copy()
+    resistance = df["High"].rolling(20).max().shift(1)
+    breakout = df["Close"] > resistance * 1.005
+    latest_breakout = breakout.where(breakout).last_valid_index()
+    is_retest = False
+    if latest_breakout is not None:
+        breakout_position = df.index.get_loc(latest_breakout)
+        bars_since = len(df) - 1 - breakout_position
+        level = resistance.loc[latest_breakout]
+        distance = df["Close"].iloc[-1] / level - 1
+        is_retest = (
+            2 <= bars_since <= 20
+            and -0.02 <= float(distance) <= 0.03
+        )
+
+    df["BREAKOUT_RETEST"] = is_retest
+    df["BREAKOUT_LEVEL"] = resistance.where(breakout).ffill()
+    df["BREAKOUT_RETEST_DISTANCE"] = (
+        df["Close"] / df["BREAKOUT_LEVEL"] - 1
+    )
+    return df
+
 
 # Calculation delegates.
 # Add/remove calculation methods here if you want direct control
-# over the calculations. Normally ACTIVE_INDICATORS below is enough.
+# over the calculations. Normally DEFAULT_INDICATORS below is enough.
 CALCULATOR_DELEGATES: dict[str, Callable[[pd.DataFrame], pd.DataFrame]] = {
     "moving_averages": calculate_moving_averages,
     "rsi": calculate_rsi,
@@ -189,6 +282,9 @@ CALCULATOR_DELEGATES: dict[str, Callable[[pd.DataFrame], pd.DataFrame]] = {
     "price_momentum": calculate_price_momentum,
     "ma_slopes": calculate_ma_slopes,
     "volatility": calculate_volatility,
+    "horizontal_support": calculate_horizontal_support,
+    "triangle_compression": calculate_triangle_compression,
+    "breakout_retest": calculate_breakout_retest,
     "rising_support_line": calculate_rising_support_line
 }
 
@@ -196,14 +292,27 @@ CALCULATOR_DELEGATES: dict[str, Callable[[pd.DataFrame], pd.DataFrame]] = {
 def calculate_selected_indicators(
     df: pd.DataFrame,
     indicators: Iterable[IndicatorDefinition],
+    as_of: str | pd.Timestamp | None = None,
 ) -> pd.DataFrame:
     """
     Execute only the calculator delegates required by `indicators`.
 
     Each calculator is executed at most once, even if several
     scoring indicators depend on it.
+
+    When ``as_of`` is supplied, rows after that date are removed before
+    any calculator runs. This keeps every derived feature point-in-time.
     """
     df = df.copy()
+    if as_of is not None:
+        evaluation_date = pd.Timestamp(as_of).normalize()
+        index = pd.to_datetime(df.index)
+        if getattr(index, "tz", None) is not None:
+            index = index.tz_localize(None)
+        df = df.loc[index.normalize() <= evaluation_date]
+
+    if df.empty:
+        raise ValueError("No market data is available on or before as_of")
 
     required_calculators = []
     for indicator in indicators:
